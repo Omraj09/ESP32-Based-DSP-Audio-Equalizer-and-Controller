@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 DSP Audio Controller</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --accent: #00ffcc;
+            --text-main: #e0e0e0;
+            --text-dim: #888888;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+        }
+
+        .eq-panel {
+            display: flex;
+            gap: 30px;
+            background: var(--panel-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid #333;
+        }
+
+        .band {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .val-display {
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            width: 50px;
+            text-align: center;
+        }
+
+        /* Vertical Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 150px;
+            height: 6px;
+            background: #333;
+            border-radius: 5px;
+            outline: none;
+            /* Rotate to vertical */
+            transform: rotate(270deg);
+            margin: 70px 0; 
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        label {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>DSP Audio Controller</h1>
+
+    <div class="eq-panel">
+        <div class="band">
+            <div class="val-display" id="val-60">0 dB</div>
+            <input type="range" id="band-60" min="-12" max="12" value="0" step="0.5" oninput="updateEQ(60, this.value)">
+            <label>60 Hz</label>
+        </div>
+
+        <div class="band">
+            <div class="val-display" id="val-250">0 dB</div>
+            <input type="range" id="band-250" min="-12" max="12" value="0" step="0.5" oninput="updateEQ(250, this.value)">
+            <label>250 Hz</label>
+        </div>
+
+        <div class="band">
+            <div class="val-display" id="val-1000">0 dB</div>
+            <input type="range" id="band-1000" min="-12" max="12" value="0" step="0.5" oninput="updateEQ(1000, this.value)">
+            <label>1 kHz</label>
+        </div>
+
+        <div class="band">
+            <div class="val-display" id="val-4000">0 dB</div>
+            <input type="range" id="band-4000" min="-12" max="12" value="0" step="0.5" oninput="updateEQ(4000, this.value)">
+            <label>4 kHz</label>
+        </div>
+
+        <div class="band">
+            <div class="val-display" id="val-12000">0 dB</div>
+            <input type="range" id="band-12000" min="-12" max="12" value="0" step="0.5" oninput="updateEQ(12000, this.value)">
+            <label>12 kHz</label>
+        </div>
+    </div>
+
+    <script>
+        // Store timers for each frequency band to allow simultaneous adjustment
+        const debounceTimers = {};
+
+        function updateEQ(freq, gain) {
+            // Instantly update the UI text for responsiveness
+            const displayGain = gain > 0 ? '+' + gain : gain;
+            document.getElementById('val-' + freq).innerText = displayGain + ' dB';
+
+            // Clear the existing timer for this specific frequency
+            clearTimeout(debounceTimers[freq]);
+
+            // Set a new timer. The HTTP request is only fired if the user stops sliding for 150ms.
+            debounceTimers[freq] = setTimeout(() => {
+                console.log(`Transmitting: Frequency ${freq}Hz -> Gain ${gain}dB`);
+                
+                fetch(`/update_eq?freq=${freq}&gain=${gain}`)
+                    .then(response => {
+                        if(!response.ok) {
+                            console.error('Network Error: DSP failed to acknowledge new coefficients.');
+                        }
+                    })
+                    .catch(err => console.error('Fetch Error:', err));
+            }, 150); 
+        }
+    </script>
+</body>
+</html>
