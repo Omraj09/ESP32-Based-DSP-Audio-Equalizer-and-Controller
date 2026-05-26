@@ -1,33 +1,32 @@
+#include <math.h>
 #include "dsp_biquad.h"
 
-// Placeholder for active filter coefficients (b0, b1, b2, a1, a2)
-float b0 = 1.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0;
-float z1_L = 0, z2_L = 0; // Delay lines for Left channel
-float z1_R = 0, z2_R = 0; // Delay lines for Right channel
+// Standard audio sample rate for A2DP
+const float SAMPLE_RATE = 44100.0f; 
 
-int16_t process_audio_sample(int16_t input, int channel) {
-    float in = (float)input;
-    float out = 0;
-
-    if (channel == 0) { // Left Channel
-        out = in * b0 + z1_L;
-        z1_L = in * b1 + z2_L - a1 * out;
-        z2_L = in * b2 - a2 * out;
-    } else { // Right Channel
-        out = in * b0 + z1_R;
-        z1_R = in * b1 + z2_R - a1 * out;
-        z2_R = in * b2 - a2 * out;
-    }
-
-    // Hard clipping protection
-    if (out > 32767.0f) return 32767;
-    if (out < -32768.0f) return -32768;
-
-    return (int16_t)out;
-}
-
-// Function to calculate and update coefficients based on Web UI frequency/gain inputs
+// Update coefficients for a Peaking EQ Filter
 void update_filter_coefficients(float frequency, float gain_db) {
-    // Math to convert frequency and gain into b0, b1, b2, a1, a2 goes here.
-    // This requires calculating the Q factor and standard audio DSP formulas.
+    // Quality factor (Q) determines the bandwidth of the EQ curve. 
+    // 0.707 is a standard, musically pleasing bandwidth.
+    float Q = 0.707f; 
+
+    // Convert gain from dB to linear amplitude
+    float A = pow(10.0f, gain_db / 40.0f);
+    
+    // Calculate angular frequency
+    float w0 = 2.0f * M_PI * frequency / SAMPLE_RATE;
+    float alpha = sin(w0) / (2.0f * Q);
+
+    // Calculate intermediate a0 coefficient
+    float a0 = 1.0f + (alpha / A);
+
+    // Update global Biquad coefficients
+    b0 = (1.0f + alpha * A) / a0;
+    b1 = (-2.0f * cos(w0)) / a0;
+    b2 = (1.0f - alpha * A) / a0;
+    
+    // Note: a1 and a2 are negated in the difference equation calculation 
+    // in the process_audio_sample function, so they remain positive here.
+    a1 = (-2.0f * cos(w0)) / a0;
+    a2 = (1.0f - (alpha / A)) / a0;
 }
