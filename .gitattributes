@@ -1,0 +1,15 @@
+# ==============================================================================
+# GitHub Linguist Language Overrides
+# ==============================================================================
+
+# Treat web control interface files as non-detectable so C/C++ is the main language
+*.html linguist-detectable=false
+*.css linguist-detectable=false
+*.js linguist-detectable=false
+
+# Explicitly ensure embedded files are tracked as the core codebase language
+*.cpp linguist-detectable=true
+*.hpp linguist-detectable=true
+*.ino linguist-detectable=true
+*.c linguist-detectable=true
+*.h linguist-detectable=true
